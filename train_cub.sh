@@ -12,4 +12,4 @@
 module load cuda/11.0.3
 
 srun bash -c "hostname;"
-srun bash -c "python -m torch.distributed.launch --nproc_per_node=4 main_dino.py --arch vit_small --data_path /fs/nexus-scratch/CUB_200_2011/train --output_dir /fs/nexus-scratch/dino/outputs/cub;"
+srun bash -c "python -m torch.distributed.launch --nproc_per_node=4 main_dino.py --arch vit_small --data_path /fs/nexus-scratch/mgwillia/CUB_200_2011/train --output_dir /fs/nexus-scratch/mgwillia/dino/outputs/cub;"
