@@ -211,7 +211,7 @@ class VisionTransformer(nn.Module):
         for blk in self.blocks:
             x = blk(x)
         x = self.norm(x)
-        #print(f'Dim before cls filter: {x.shape}')
+        print(f'Dim before cls filter: {x.shape}')
         return x # MATT
         #return x[:, 0]
 
@@ -287,7 +287,7 @@ class DINOHead(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-        #print(f'Dim before projection: {x.shape}')
+        print(f'Dim before projection: {x.shape}')
         cls = x[:, 0] # MATT
         patches = x[:, 1:] # MATT
         out = self.mlp(cls)

@@ -103,6 +103,7 @@ def get_args_parser():
     parser.add_argument('--optimizer', default='adamw', type=str,
         choices=['adamw', 'sgd', 'lars'], help="""Type of optimizer. We recommend using adamw with ViTs.""")
     parser.add_argument('--drop_path_rate', type=float, default=0.1, help="stochastic depth rate")
+    parser.add_argument('--patch_clustering_alpha', type=float, default=1.0, help="alpha for patch clustering loss (part loss)")
 
     # Multi-crop parameters
     parser.add_argument('--global_crops_scale', type=float, nargs='+', default=(0.4, 1.),
@@ -221,6 +222,10 @@ def train_dino(args):
         args.epochs,
     ).cuda()
 
+    part_loss = PartLoss(
+
+    ).cuda()
+
     # ============ preparing optimizer ... ============
     params_groups = utils.get_params_groups(student)
     if args.optimizer == "adamw":
@@ -261,6 +266,7 @@ def train_dino(args):
         optimizer=optimizer,
         fp16_scaler=fp16_scaler,
         dino_loss=dino_loss,
+        part_loss=part_loss,
     )
     start_epoch = to_restore["epoch"]
 
@@ -270,7 +276,7 @@ def train_dino(args):
         data_loader.sampler.set_epoch(epoch)
 
         # ============ training one epoch of DINO ... ============
-        train_stats = train_one_epoch(student, teacher, teacher_without_ddp, dino_loss,
+        train_stats = train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, part_loss,
             data_loader, optimizer, lr_schedule, wd_schedule, momentum_schedule,
             epoch, fp16_scaler, args)
 
@@ -282,6 +288,7 @@ def train_dino(args):
             'epoch': epoch + 1,
             'args': args,
             'dino_loss': dino_loss.state_dict(),
+            'part_loss': part_loss.state_dict(),
         }
         if fp16_scaler is not None:
             save_dict['fp16_scaler'] = fp16_scaler.state_dict()
@@ -298,7 +305,7 @@ def train_dino(args):
     print('Training time {}'.format(total_time_str))
 
 
-def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loader,
+def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, part_loss, data_loader,
                     optimizer, lr_schedule, wd_schedule, momentum_schedule,epoch,
                     fp16_scaler, args):
     metric_logger = utils.MetricLogger(delimiter="  ")
@@ -315,11 +322,14 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
         images = [im.cuda(non_blocking=True) for im in images]
         # teacher and student forward passes + compute dino loss
         with torch.cuda.amp.autocast(fp16_scaler is not None):
-            teacher_output, teacher_patches = teacher(images[:2])  # only the 2 global views pass through the teacher
+            teacher_output, _ = teacher(images[:2])  # only the 2 global views pass through the teacher
             student_output, student_patches = student(images)
-            print(f'Teacher out shape: {teacher_output.shape}, patches shape: {teacher_patches.shape}')
+            print(f'Teacher out shape: {teacher_output.shape}')
             print(f'Student out shape: {student_output.shape}, patches shape: {student_patches.shape}')
-            loss = dino_loss(student_output, teacher_output, epoch)
+            #loss = dino_loss(student_output, teacher_output, epoch)
+            distillation_loss = dino_loss(student_output, teacher_output, epoch)
+            patch_clustering_loss = part_loss(student_patches)
+            loss = distillation_loss + args.patch_clustering_alpha * patch_clustering_loss
 
         if not math.isfinite(loss.item()):
             print("Loss is {}, stopping training".format(loss.item()), force=True)
