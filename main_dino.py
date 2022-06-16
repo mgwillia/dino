@@ -327,11 +327,11 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, part_loss,
             global_student_output, global_student_patches = student(images[:2])
             local_student_output, local_student_patches = student(images[2:])
             student_output = torch.cat((global_student_output, local_student_output), 0)
-            print(f'Teacher out shape: {teacher_output.shape}, \
-                teacher patches shape: {teacher_patches.shape}')
-            print(f'Student out shape: {student_output.shape}, \
-                global patches shape: {global_student_patches.shape}, \
-                local patches shape: {local_student_patches.shape}')
+            #print(f'Teacher out shape: {teacher_output.shape}, \
+            #    teacher patches shape: {teacher_patches.shape}')
+            #print(f'Student out shape: {student_output.shape}, \
+            #    global patches shape: {global_student_patches.shape}, \
+            #    local patches shape: {local_student_patches.shape}')
             #loss = dino_loss(student_output, teacher_output, epoch)
             distillation_loss = dino_loss(student_output, teacher_output, epoch)
             patch_clustering_loss = part_loss(global_student_patches, local_student_patches, teacher_patches)
