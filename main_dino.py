@@ -476,7 +476,7 @@ class PartLoss(nn.Module):
 
         teacher_parts = teacher_sims.argmin(1)
 
-        grammar_update = torch.zeros(self.grammar.shape)
+        grammar_update = torch.zeros(self.grammar.shape).cuda()
         for part in range(self.grammar.shape[0]):
             part_patch_matches = batch_teacher_patches[teacher_parts == part]
             print(part_patch_matches.shape)
