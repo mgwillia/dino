@@ -13,6 +13,6 @@ module load cuda/11.0.3
 
 srun bash -c "hostname;"
 srun bash -c "python -m torch.distributed.launch --nproc_per_node=4 main_dino.py --arch vit_small \
-    --data_path /fs/nexus-scratch/mgwillia/CUB_200_2011/train --output_dir /fs/nexus-scratch/mgwillia/dino/outputs/cub/base_vits8 \
+    --data_path /fs/nexus-scratch/mgwillia/CUB_200_2011/train --output_dir /fs/nexus-scratch/mgwillia/dino/outputs/cub/parts_vits8 \
     --epochs 300 --warmup_epochs 10 --batch_size_per_gpu 32 --patch_size 8 --lr 0.0005 --norm_last_layer False \
     --patch_clustering_alpha 0.5;"
