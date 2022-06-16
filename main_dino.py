@@ -469,14 +469,15 @@ class PartLoss(nn.Module):
 
     @torch.no_grad()
     def update_grammar(self, teacher_patches):
-        teacher_patches = teacher_patches.reshape(-1, 384)
+        grammar_update = teacher_patches.reshape(-1, 384)
+        dist.all_reduce(grammar_update)
 
-        teacher_sims = torch.cdist(teacher_patches, self.grammar)
+        teacher_sims = torch.cdist(grammar_update, self.grammar)
 
         teacher_parts = teacher_sims.argmin(1)
 
         for part in range(self.grammar.shape[0]):
-            part_patch_matches = teacher_patches[teacher_parts == part]
+            part_patch_matches = grammar_update[teacher_parts == part]
             print(part_patch_matches.shape)
             if part_patch_matches is not None:
                 part_mean_patch = part_patch_matches.mean(0)
