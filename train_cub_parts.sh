@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=train_cub
-#SBATCH --output=logs/train_cub.out.%j
-#SBATCH --error=logs/train_cub.out.%j
+#SBATCH --job-name=train_cub_parts
+#SBATCH --output=logs/train_cub_parts.out.%j
+#SBATCH --error=logs/train_cub_parts.out.%j
 #SBATCH --time=24:00:00
 #SBATCH --qos=high
 #SBATCH --gres=gpu:rtxa6000:4
