@@ -479,10 +479,10 @@ class PartLoss(nn.Module):
         grammar_update = torch.zeros(self.grammar.shape).cuda()
         for part in range(self.grammar.shape[0]):
             part_patch_matches = batch_teacher_patches[teacher_parts == part]
-            print(part_patch_matches.shape)
-            if part_patch_matches is not None:
+            #print(part_patch_matches.shape)
+            if part_patch_matches.shape[0] > 0:
                 part_mean_patch = part_patch_matches.mean(0)
-                print(f'Mean patch shape ({part_mean_patch.shape}) should be (1, 384) or similar')
+                #print(f'Mean patch shape ({part_mean_patch.shape}) should be (1, 384) or similar')
                 grammar_update[part] += part_mean_patch
             else:
                 grammar_update = self.grammar[part]
