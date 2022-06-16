@@ -444,8 +444,8 @@ class PartLoss(nn.Module):
         #TODO: consider non-random initialization, e.g. by offline kmeans before finetuning
 
     def forward(self, student_global_patches, student_local_patches, teacher_patches):
-        student_global_patches = student_global_patches.view(-1, 384)
-        student_local_patches = student_local_patches.view(-1, 384)
+        student_global_patches = student_global_patches.reshape(-1, 384)
+        student_local_patches = student_local_patches.reshape(-1, 384)
 
         student_global_sims = torch.cdist(student_global_patches, self.grammar)
         student_local_sims = torch.cdist(student_local_patches, self.grammar)
@@ -469,7 +469,7 @@ class PartLoss(nn.Module):
 
     @torch.no_grad()
     def update_grammar(self, teacher_patches):
-        teacher_patches = teacher_patches.view(-1, 384)
+        teacher_patches = teacher_patches.reshape(-1, 384)
 
         teacher_sims = torch.cdist(teacher_patches, self.grammar)
 
