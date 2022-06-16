@@ -438,7 +438,7 @@ class DINOLoss(nn.Module):
 
 
 class PartLoss(nn.Module):
-    def __init__(self, nparts=50, grammar_momentum = 0.9):
+    def __init__(self, nparts=100, grammar_momentum = 0.9):
         super().__init__()
         self.register_buffer("grammar", torch.rand(nparts, 384))
         self.grammar_momentum = grammar_momentum
@@ -448,8 +448,8 @@ class PartLoss(nn.Module):
         student_global_patches = student_global_patches.reshape(-1, 384)
         student_local_patches = student_local_patches.reshape(-1, 384)
 
-        student_global_sims = torch.cdist(student_global_patches, self.grammar)
-        student_local_sims = torch.cdist(student_local_patches, self.grammar)
+        student_global_sims = torch.cdist(student_global_patches, self.grammar.clone().detach())
+        student_local_sims = torch.cdist(student_local_patches, self.grammar.clone().detach())
         
         print(f'Global sims shape: {student_global_sims.shape}, local sims shape: {student_local_sims.shape}')
 
@@ -470,20 +470,23 @@ class PartLoss(nn.Module):
 
     @torch.no_grad()
     def update_grammar(self, teacher_patches):
-        grammar_update = teacher_patches.reshape(-1, 384)
-        dist.all_reduce(grammar_update)
+        batch_teacher_patches = teacher_patches.reshape(-1, 384)
 
-        teacher_sims = torch.cdist(grammar_update, self.grammar)
+        teacher_sims = torch.cdist(batch_teacher_patches, self.grammar.clone().detach())
 
         teacher_parts = teacher_sims.argmin(1)
 
+        grammar_update = torch.zeros(self.grammar.shape)
         for part in range(self.grammar.shape[0]):
-            part_patch_matches = grammar_update[teacher_parts == part]
+            part_patch_matches = batch_teacher_patches[teacher_parts == part]
             print(part_patch_matches.shape)
             if part_patch_matches is not None:
                 part_mean_patch = part_patch_matches.mean(0)
                 print(f'Mean patch shape ({part_mean_patch.shape}) should be (1, 384) or similar')
-                self.grammar[part] = self.grammar_momentum * self.grammar[part] + (1 - self.grammar_momentum) * part_mean_patch
+                grammar_update[part] += part_mean_patch
+            else:
+                grammar_update = self.grammar[part]
+        self.grammar = self.grammar_momentum * self.grammar + (1 - self.grammar_momentum) * grammar_update
 
 
 class DataAugmentationDINO(object):
