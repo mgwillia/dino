@@ -457,7 +457,7 @@ class PartLoss(nn.Module):
 
         print(f'Global parts shape: {student_global_parts_sims.shape}, local parts shape: {student_local_parts_sims.shape}')
 
-        total_loss = (student_global_parts_sims + student_local_parts_sims) / \
+        total_loss = (student_global_parts_sims.sum() + student_local_parts_sims.sum()) / \
             (student_global_parts_sims.shape[0] + student_local_parts_sims.shape[0])
 
         self.update_grammar(teacher_patches)
