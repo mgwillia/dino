@@ -322,18 +322,19 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, part_loss,
         images = [im.cuda(non_blocking=True) for im in images]
         # teacher and student forward passes + compute dino loss
         with torch.cuda.amp.autocast(fp16_scaler is not None):
-            teacher_output, _ = teacher(images[:2])  # only the 2 global views pass through the teacher
+            teacher_output, teacher_patches = teacher(images[:2])  # only the 2 global views pass through the teacher
             global_student_output, global_student_patches = student(images[:2])
             local_student_output, local_student_patches = student(images[2:])
             student_output = torch.cat((global_student_output, local_student_output), 0)
-            print(f'Teacher out shape: {teacher_output.shape}')
+            print(f'Teacher out shape: {teacher_output.shape}, \
+                teacher patches shape: {teacher_patches.shape}')
             print(f'Student out shape: {student_output.shape}, \
                 global patches shape: {global_student_patches.shape}, \
                 local patches shape: {local_student_patches.shape}')
             #loss = dino_loss(student_output, teacher_output, epoch)
             distillation_loss = dino_loss(student_output, teacher_output, epoch)
-            patch_clustering_loss = part_loss(global_student_patches, local_student_patches)
-            loss = distillation_loss + args.patch_clustering_alpha * patch_clustering_loss
+            patch_clustering_loss = part_loss(global_student_patches, local_student_patches, teacher_patches)
+            loss = (1 - args.patch_clustering_alpha * distillation_loss) + args.patch_clustering_alpha * patch_clustering_loss
 
         if not math.isfinite(loss.item()):
             print("Loss is {}, stopping training".format(loss.item()), force=True)
@@ -436,11 +437,51 @@ class DINOLoss(nn.Module):
 
 
 class PartLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, nparts=50, grammar_momentum = 0.9):
         super().__init__()
+        self.register_buffer("grammar", torch.rand(nparts, 384))
+        self.grammar_momentum = grammar_momentum
+        #TODO: consider non-random initialization, e.g. by offline kmeans before finetuning
 
-    def forward(self, global_patches, local_patches):
-        return 1.0
+    def forward(self, student_global_patches, student_local_patches, teacher_patches):
+        student_global_patches = student_global_patches.view(-1, 384)
+        student_local_patches = student_local_patches.view(-1, 384)
+
+        student_global_sims = torch.cdist(student_global_patches, self.grammar)
+        student_local_sims = torch.cdist(student_local_patches, self.grammar)
+        
+        print(f'Global sims shape: {student_global_sims.shape}, local sims shape: {student_local_sims.shape}')
+
+        student_global_parts_sims = student_global_sims.min(1)
+        student_local_parts_sims = student_local_sims.min(1)
+
+        print(f'Global parts shape: {student_global_parts_sims.shape}, local parts shape: {student_local_parts_sims.shape}')
+
+        total_loss = (student_global_parts_sims + student_local_parts_sims) / \
+            (student_global_parts_sims.shape[0] + student_local_parts_sims.shape[0])
+
+        self.update_grammar(teacher_patches)
+        return total_loss
+
+    @torch.no_grad()
+    def initialize_grammer(self):
+        pass
+
+    @torch.no_grad()
+    def update_grammar(self, teacher_patches):
+        teacher_patches = teacher_patches.view(-1, 384)
+
+        teacher_sims = torch.cdist(teacher_patches, self.grammar)
+
+        teacher_parts = teacher_sims.argmin(1)
+
+        for part in range(self.grammar.shape[0]):
+            part_patch_matches = teacher_patches[teacher_parts == part]
+            print(part_patch_matches.shape)
+            if part_patch_matches is not None:
+                part_mean_patch = part_patch_matches.mean(0)
+                print(f'Mean patch shape ({part_mean_patch.shape}) should be (1, 384) or similar')
+                self.grammar[part] = self.grammar_momentum * self.grammar[part] + (1 - self.grammar_momentum) * part_mean_patch
 
 
 class DataAugmentationDINO(object):
