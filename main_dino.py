@@ -103,7 +103,7 @@ def get_args_parser():
     parser.add_argument('--optimizer', default='adamw', type=str,
         choices=['adamw', 'sgd', 'lars'], help="""Type of optimizer. We recommend using adamw with ViTs.""")
     parser.add_argument('--drop_path_rate', type=float, default=0.1, help="stochastic depth rate")
-    parser.add_argument('--patch_clustering_alpha', type=float, default=1.0, help="alpha for patch clustering loss (part loss)")
+    parser.add_argument('--patch_clustering_alpha', type=float, default=0.0, help="alpha for patch clustering loss (part loss)")
 
     # Multi-crop parameters
     parser.add_argument('--global_crops_scale', type=float, nargs='+', default=(0.4, 1.),
