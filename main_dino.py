@@ -325,14 +325,14 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, part_loss,
             teacher_output, _ = teacher(images[:2])  # only the 2 global views pass through the teacher
             global_student_output, global_student_patches = student(images[:2])
             local_student_output, local_student_patches = student(images[2:])
-            student_output = torch.cat((global_student_output, local_student_output), 1)
+            student_output = torch.cat((global_student_output, local_student_output), 0)
             print(f'Teacher out shape: {teacher_output.shape}')
             print(f'Student out shape: {student_output.shape}, \
                 global patches shape: {global_student_patches.shape}, \
                 local patches shape: {local_student_patches.shape}')
             #loss = dino_loss(student_output, teacher_output, epoch)
             distillation_loss = dino_loss(student_output, teacher_output, epoch)
-            patch_clustering_loss = part_loss(student_patches)
+            patch_clustering_loss = part_loss(global_student_patches, local_student_patches)
             loss = distillation_loss + args.patch_clustering_alpha * patch_clustering_loss
 
         if not math.isfinite(loss.item()):
@@ -439,7 +439,7 @@ class PartLoss(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, student_patches):
+    def forward(self, global_patches, local_patches):
         return 1.0
 
 
