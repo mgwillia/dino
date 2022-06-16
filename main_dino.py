@@ -400,10 +400,10 @@ class DINOLoss(nn.Module):
         Cross-entropy between softmax outputs of the teacher and student networks.
         """
         student_out = student_output / self.student_temp
-        print(f'Teacher output shape: {teacher_output.shape}')
-        print(f'Student output shape, before chunk: {student_output.shape}')
+        #print(f'Teacher output shape: {teacher_output.shape}')
+        #print(f'Student output shape, before chunk: {student_output.shape}')
         student_out = student_out.chunk(self.ncrops)
-        print(f'Student output shape, after chunk: {student_output.shape}')
+        #print(f'Student output shape, after chunk: {student_output.shape}')
 
         # teacher centering and sharpening
         temp = self.teacher_temp_schedule[epoch]
@@ -479,7 +479,7 @@ class PartLoss(nn.Module):
         grammar_update = torch.zeros(self.grammar.shape).cuda()
         for part in range(self.grammar.shape[0]):
             part_patch_matches = batch_teacher_patches[teacher_parts == part]
-            #print(part_patch_matches.shape)
+            print(part_patch_matches.shape)
             if part_patch_matches.shape[0] > 0:
                 part_mean_patch = part_patch_matches.mean(0)
                 #print(f'Mean patch shape ({part_mean_patch.shape}) should be (1, 384) or similar')
