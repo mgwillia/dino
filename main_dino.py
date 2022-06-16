@@ -323,9 +323,13 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, part_loss,
         # teacher and student forward passes + compute dino loss
         with torch.cuda.amp.autocast(fp16_scaler is not None):
             teacher_output, _ = teacher(images[:2])  # only the 2 global views pass through the teacher
-            student_output, student_patches = student(images)
+            global_student_output, global_student_patches = student(images[:2])
+            local_student_output, local_student_patches = student(images[2:])
+            student_output = torch.cat((global_student_output, local_student_output), 1)
             print(f'Teacher out shape: {teacher_output.shape}')
-            print(f'Student out shape: {student_output.shape}, patches shape: {student_patches.shape}')
+            print(f'Student out shape: {student_output.shape}, \
+                global patches shape: {global_student_patches.shape}, \
+                local patches shape: {local_student_patches.shape}')
             #loss = dino_loss(student_output, teacher_output, epoch)
             distillation_loss = dino_loss(student_output, teacher_output, epoch)
             patch_clustering_loss = part_loss(student_patches)
