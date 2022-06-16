@@ -431,6 +431,14 @@ class DINOLoss(nn.Module):
         self.center = self.center * self.center_momentum + batch_center * (1 - self.center_momentum)
 
 
+class PartLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, student_patches):
+        return 1.0
+
+
 class DataAugmentationDINO(object):
     def __init__(self, global_crops_scale, local_crops_scale, local_crops_number):
         flip_and_color_jitter = transforms.Compose([
