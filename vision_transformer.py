@@ -212,7 +212,8 @@ class VisionTransformer(nn.Module):
             x = blk(x)
         x = self.norm(x)
         print(f'Dim before cls filter: {x.shape}')
-        return x[:, 0]
+        return x # MATT
+        #return x[:, 0]
 
     def get_last_selfattention(self, x):
         x = self.prepare_tokens(x)
@@ -287,7 +288,9 @@ class DINOHead(nn.Module):
 
     def forward(self, x):
         print(f'Dim before projection: {x.shape}')
-        x = self.mlp(x)
-        x = nn.functional.normalize(x, dim=-1, p=2)
-        x = self.last_layer(x)
-        return x
+        cls = x[:, 0] # MATT
+        patches = x[:, 1:] # MATT
+        out = self.mlp(cls)
+        out = nn.functional.normalize(out, dim=-1, p=2)
+        out = self.last_layer(out)
+        return out, patches

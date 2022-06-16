@@ -315,8 +315,10 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
         images = [im.cuda(non_blocking=True) for im in images]
         # teacher and student forward passes + compute dino loss
         with torch.cuda.amp.autocast(fp16_scaler is not None):
-            teacher_output = teacher(images[:2])  # only the 2 global views pass through the teacher
-            student_output = student(images)
+            teacher_output, teacher_patches = teacher(images[:2])  # only the 2 global views pass through the teacher
+            student_output, student_patches = student(images)
+            print(f'Teacher out shape: {teacher_output.shape}, patches shape: {teacher_patches.shape}')
+            print(f'Student out shape: {student_output.shape}, patches shape: {student_patches.shape}')
             loss = dino_loss(student_output, teacher_output, epoch)
 
         if not math.isfinite(loss.item()):
