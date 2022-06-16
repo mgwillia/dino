@@ -452,8 +452,8 @@ class PartLoss(nn.Module):
         
         print(f'Global sims shape: {student_global_sims.shape}, local sims shape: {student_local_sims.shape}')
 
-        student_global_parts_sims = student_global_sims.min(1)
-        student_local_parts_sims = student_local_sims.min(1)
+        student_global_parts_sims = student_global_sims.min(1).values
+        student_local_parts_sims = student_local_sims.min(1).values
 
         print(f'Global parts shape: {student_global_parts_sims.shape}, local parts shape: {student_local_parts_sims.shape}')
 
