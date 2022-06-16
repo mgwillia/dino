@@ -485,7 +485,7 @@ class PartLoss(nn.Module):
                 #print(f'Mean patch shape ({part_mean_patch.shape}) should be (1, 384) or similar')
                 grammar_update[part] += part_mean_patch
             else:
-                grammar_update = self.grammar[part]
+                grammar_update[part] = self.grammar[part]
         self.grammar = self.grammar_momentum * self.grammar + (1 - self.grammar_momentum) * grammar_update
 
 
