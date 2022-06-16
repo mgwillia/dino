@@ -335,7 +335,7 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, part_loss,
             #loss = dino_loss(student_output, teacher_output, epoch)
             distillation_loss = dino_loss(student_output, teacher_output, epoch)
             patch_clustering_loss = part_loss(global_student_patches, local_student_patches, teacher_patches)
-            loss = (1 - args.patch_clustering_alpha * distillation_loss) + args.patch_clustering_alpha * patch_clustering_loss
+            loss = (1 - args.patch_clustering_alpha) * distillation_loss + args.patch_clustering_alpha * patch_clustering_loss
 
         if not math.isfinite(loss.item()):
             print("Loss is {}, stopping training".format(loss.item()), force=True)
