@@ -274,9 +274,6 @@ def train_dino(args):
     data_loader.sampler.set_epoch(0)
     all_teacher_patches = None
     for it, (images, _) in enumerate(data_loader):
-        # update weight decay and learning rate according to their schedule
-        it = len(data_loader) * epoch + it  # global training iteration
-
         # move images to gpu
         images = [im.cuda(non_blocking=True) for im in images]
         with torch.cuda.amp.autocast(fp16_scaler is not None):
