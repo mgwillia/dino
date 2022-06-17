@@ -279,7 +279,7 @@ def train_dino(args):
         with torch.cuda.amp.autocast(fp16_scaler is not None):
             _, teacher_patches = teacher(images[:2])  # only the 2 global views pass through the teacher
             all_teacher_patches[it*64:it*64+64,:,:] = teacher_patches.cpu()
-    kmeans = KMeans(n_clusters=part_loss.grammar.shape[0]).fit(all_teacher_patches)
+    kmeans = KMeans(n_clusters=part_loss.grammar.shape[0]).fit(np.reshape(all_teacher_patches, (-1, 384)))
     part_loss.grammar = torch.from_numpy(kmeans.cluster_centers_).clone().cuda()
     print(part_loss.grammar)
 
