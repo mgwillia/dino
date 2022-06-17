@@ -272,19 +272,15 @@ def train_dino(args):
     start_epoch = to_restore["epoch"]
 
     data_loader.sampler.set_epoch(0)
-    all_teacher_patches = None
+    all_teacher_patches = np.zeros((len(data_loader) * 32 * 2, 784, 384))
     for it, (images, _) in enumerate(data_loader):
         # move images to gpu
         images = [im.cuda(non_blocking=True) for im in images]
         with torch.cuda.amp.autocast(fp16_scaler is not None):
             _, teacher_patches = teacher(images[:2])  # only the 2 global views pass through the teacher
-            if all_teacher_patches is None:
-                all_teacher_patches = teacher_patches
-            else:
-                all_teacher_patches = torch.cat((all_teacher_patches, teacher_patches), 0)
-            print(all_teacher_patches.shape)
+            all_teacher_patches[it*64:it*64+64,:,:] = teacher_patches
     kmeans = KMeans(n_clusters=part_loss.grammar.shape[0]).fit(all_teacher_patches)
-    part_loss.grammar = torch.from_numpy(kmeans.cluster_centers_).clone()
+    part_loss.grammar = torch.from_numpy(kmeans.cluster_centers_).clone().cuda()
     print(part_loss.grammar)
 
     start_time = time.time()
