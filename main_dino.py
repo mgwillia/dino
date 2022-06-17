@@ -30,6 +30,8 @@ import torch.nn.functional as F
 from torchvision import datasets, transforms
 from torchvision import models as torchvision_models
 
+from sklearn.cluster import KMeans
+
 import utils
 import vision_transformer as vits
 from vision_transformer import DINOHead
@@ -223,7 +225,6 @@ def train_dino(args):
     ).cuda()
 
     part_loss = PartLoss(
-
     ).cuda()
 
     # ============ preparing optimizer ... ============
@@ -270,6 +271,25 @@ def train_dino(args):
     )
     start_epoch = to_restore["epoch"]
 
+    data_loader.sampler.set_epoch(0)
+    all_teacher_patches = None
+    for it, (images, _) in enumerate(data_loader):
+        # update weight decay and learning rate according to their schedule
+        it = len(data_loader) * epoch + it  # global training iteration
+
+        # move images to gpu
+        images = [im.cuda(non_blocking=True) for im in images]
+        with torch.cuda.amp.autocast(fp16_scaler is not None):
+            _, teacher_patches = teacher(images[:2])  # only the 2 global views pass through the teacher
+            if all_teacher_patches is None:
+                all_teacher_patches = teacher_patches
+            else:
+                all_teacher_patches = torch.cat((all_teacher_patches, teacher_patches), 0)
+            print(all_teacher_patches.shape)
+    kmeans = KMeans(n_clusters=part_loss.grammar.shape[0]).fit(all_teacher_patches)
+    part_loss.grammar = torch.from_numpy(kmeans.cluster_centers_).clone()
+    print(part_loss.grammar)
+
     start_time = time.time()
     print("Starting DINO training !")
     for epoch in range(start_epoch, args.epochs):
@@ -308,7 +328,6 @@ def train_dino(args):
 def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, part_loss, data_loader,
                     optimizer, lr_schedule, wd_schedule, momentum_schedule,epoch,
                     fp16_scaler, args):
-    torch.autograd.set_detect_anomaly(True) # Matt
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Epoch: [{}/{}]'.format(epoch, args.epochs)
     for it, (images, _) in enumerate(metric_logger.log_every(data_loader, 10, header)):
@@ -465,8 +484,8 @@ class PartLoss(nn.Module):
         return total_loss
 
     @torch.no_grad()
-    def initialize_grammer(self):
-        pass
+    def initialize_grammer(self, grammar):
+        self.grammmar = grammar
 
     @torch.no_grad()
     def update_grammar(self, teacher_patches):
@@ -477,15 +496,17 @@ class PartLoss(nn.Module):
         teacher_parts = teacher_sims.argmin(1)
 
         grammar_update = torch.zeros(self.grammar.shape).cuda()
+        patches_per_part = []
         for part in range(self.grammar.shape[0]):
             part_patch_matches = batch_teacher_patches[teacher_parts == part]
-            print(part_patch_matches.shape)
+            patches_per_part.append(part_patch_matches.shape[0])
             if part_patch_matches.shape[0] > 0:
                 part_mean_patch = part_patch_matches.mean(0)
                 #print(f'Mean patch shape ({part_mean_patch.shape}) should be (1, 384) or similar')
                 grammar_update[part] += part_mean_patch
             else:
                 grammar_update[part] = self.grammar[part]
+        print(patches_per_part)
         self.grammar = self.grammar_momentum * self.grammar + (1 - self.grammar_momentum) * grammar_update
 
 
